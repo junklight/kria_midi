@@ -15,10 +15,8 @@ local UI = require "ui"
 local kria = require 'kria_midi/lib/kria'
 local BeatClock = require 'beatclock'
 local clk = BeatClock.new()
-local clk_midi = midi.connect()
-clk_midi.event = function(data)
-  clk:process_midi(data)
-end
+-- local clk_midi = midi.connect()
+
 
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
@@ -42,6 +40,10 @@ local playback_icon = UI.PlaybackIcon.new(121, 55)
 playback_icon.status = 1
 
 m = midi.connect()
+m.event = function(data)
+  clk:process_midi(data)
+  print("midi in")
+end
 
 local function nsync(x)
 	if x == 2 then
@@ -162,7 +164,11 @@ function redraw()
     screen.move(10,20)
     screen.text("Root: " .. MusicUtil.note_num_to_name(root_note,true))
     screen.move(70,20)
-    screen.text("BPM: " .. params:get("bpm"))
+    if clk.external then 
+      screen.text("BPM: ext")
+    else 
+      screen.text("BPM: " .. params:get("bpm"))
+    end
     for idx = 1,4 do 
       screen.move(15 + (idx - 1 ) * 27,40)
       if screen_notes[idx] > 0 then
