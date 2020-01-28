@@ -15,8 +15,10 @@ local UI = require "ui"
 local kria = require 'kria_midi/lib/kria'
 local BeatClock = require 'beatclock'
 local clk = BeatClock.new()
--- local clk_midi = midi.connect()
-
+local clk_midi = midi.connect()
+clk_midi.event = function(data)
+  clk:process_midi(data)
+end
 
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
@@ -39,10 +41,17 @@ local root_note = 60
 local playback_icon = UI.PlaybackIcon.new(121, 55)
 playback_icon.status = 1
 
-m = midi.connect()
-m.event = function(data)
-  clk:process_midi(data)
-  print("midi in")
+local midi_in_device
+local midi_out_device
+
+
+function process_midi_in(data)
+  local msg = midi.to_msg(data)
+  print("a")
+  if msg.type == "note_on" then
+    print("b")
+    root_note = msg.note
+  end
 end
 
 local function nsync(x)
@@ -90,6 +99,15 @@ function init()
   clk.beats_per_bar = 4
   clk.on_select_internal = function() clk:start() end
   clk.on_select_external = function() print("external") end
+  params:add{type = "number", id = "midi_in_device", name = "midi in device",
+    min = 1, max = 4, default = 1,
+    action = function(value) 
+      midi_in_device = midi.connect(value) 
+      midi_in_device.event = process_midi_in
+      end}
+  params:add{type = "number", id = "midi_out_device", name = "midi out device",
+    min = 1, max = 4, default = 1,
+    action = function(value) midi_out_device = midi.connect(value) end}
 	clk:add_clock_params()
 	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
     action = function(value)
@@ -127,11 +145,11 @@ function step()
 		-- print("clock " .. clock_count)
 		if note_list[1].action == 1 then 
 		  -- print("note on " .. note_list[1].timestamp)
-		  m:note_on(note_list[1].note,100,note_list[1].channel)
+		  midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
 		  -- print("note off " .. note_list[1].timestamp)
-		  m:note_off(note_list[1].note,0,note_list[1].channel)
+		  midi_out_device:note_off(note_list[1].note,0,note_list[1].channel)
 		  screen_notes[note_list[1].track] = -1
 		end
 		table.remove(note_list,1)
