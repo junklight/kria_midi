@@ -235,6 +235,7 @@ function kria.new()
 	i.activeRpt = newempty(kria.NUM_TRACKS)
 	i.repeats = newempty(kria.NUM_TRACKS)
 	i.cur_scale = newempty(7)
+	
 	-- meta stuff
 	i.meta_pat = newempty(64,1)
 	i.meta_steps = newempty(64,7)
@@ -274,6 +275,7 @@ end
 
 function kria:init(note_callback)
 	self.callback = note_callback
+  self:calc_scale(1)
   self.keytimermetro = metro.init{ event = function() self:keytimer() end }
   self.keytimermetro:start(0.3)
   self.blink_timers = {}
@@ -863,11 +865,14 @@ function kria.scale_page(k,x,y,z)
 			-- off by one errors
 			if y == 6 then
 				k:p().scale = x
+				k:calc_scale(x)
 			elseif y == 7 then
 				k:p().scale = x + 8
+				k:calc_scale(x + 8)
 			end
 		else
 			scales[k:p().scale][8-y]=x-8
+			k:calc_scale(k:p().scale)
 		end
 
 	end
@@ -1730,6 +1735,10 @@ function kria:calc_scale(x)
 	end
 end
 
+function kria:scale_note(idx)
+  return self.cur_scale[idx]
+end
+
 -- presets are kind of separate 
 -- copying the module for now 
 -- but this feels clunky 
@@ -1768,14 +1777,10 @@ end
 
 function kria.loadornew(fname)
 	local ret
-	print("Load or new")
   ret = tabutil.load( _path.data .. fname)
-  print("Loaded data")
 	if ret == nil then
 		ret = kria.new()
-		print("did new")
 	else
-	  print("Loading")
   	setmetatable(ret, kria)
 		for idx = 1,kria.GRID_PRESETS do 
 			setmetatable(ret.presetstore[idx],kriadata)
@@ -1787,7 +1792,7 @@ function kria.loadornew(fname)
 			end
 		end	
   end
-  print("done load")
+  
 	return ret
 end
 

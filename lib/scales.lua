@@ -24,13 +24,15 @@ for idx = 1,16 do
 	scales[idx] = {}
 	if idx < 8 then 
 		-- copy in scale data for the first 7
-		for sdx = 1,7 do
-			scales[idx][sdx] = SCALE_INT[idx][sdx]
+		scales[idx][1] = 1
+		for sdx = 2,7 do
+			scales[idx][sdx] = SCALE_INT[idx][sdx - 1]
 		end
 	else
 		-- for the rest just use the first for now
-		for sdx = 1,7 do
-			scales[idx][sdx] = SCALE_INT[1][sdx]
+		scales[idx][1] = 1
+		for sdx = 2,7 do
+			scales[idx][sdx] = SCALE_INT[1][sdx - 1]
 		end
 	end
 end

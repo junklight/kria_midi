@@ -10,7 +10,8 @@
 -- but it seems to do a sine noise
 -- if you don't specifiy one
 -- engine.name = "ack"
-
+local MusicUtil = require "musicutil"
+local UI = require "ui"
 local kria = require 'kria_midi/lib/kria'
 local BeatClock = require 'beatclock'
 local clk = BeatClock.new()
@@ -33,6 +34,12 @@ local clock_count = 1
 local current_sld = 8
 
 local note_list = {}
+local screen_notes = { -1 , -1 , -1 , -1 }
+
+local root_note = 60
+
+local playback_icon = UI.PlaybackIcon.new(121, 55)
+playback_icon.status = 1
 
 m = midi.connect()
 
@@ -56,17 +63,18 @@ end
 
 function make_note(track,n,oct,dur,tmul,rpt,glide)
 		local midich = params:get(track .."_midi_chan")
-		print("[" .. track .. "/" .. midich .. "] Note " .. n .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
+		local nte = k:scale_note(n)
+		print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
 		-- ignore repeats and glide for now
 		-- currently 1 == C3 (60 = 59 + 1)
 		local r = rpt + 1
 		local notedur = 6  * (dur/r * tmul)
 		print( notedur )
 		for rptnum = 1,r do
-		  midi_note = (59 + n) + ( (oct - 3) * 12 )
+		  midi_note = (59 + nte) + ( (oct - 3) * 12 ) - 60 + root_note
 		  -- m:note_on(midi_note,100,midich)
-		  table.insert(note_list,{ action = 1 , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
-		  table.insert(note_list,{ action = 0 , timestamp = (clock_count + (rptnum * notedur)) - 0.1, channel = midich , note = midi_note })
+		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
+		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) - 0.1, channel = midich , note = midi_note })
 		end
 end
 
@@ -75,7 +83,7 @@ function init()
   print("Kria Init")
 	k = kria.loadornew("Kria/kria.data")
 	--k = kria.new()
-	
+	norns.enc.sens(2,4)
   k:init(make_note)
   clk.on_step = step
   clk.beats_per_bar = 4
@@ -104,6 +112,9 @@ function init()
   -- grid refresh timer, 15 fps
   metro_grid_redraw = metro.init(function(idx,stage) gridredraw() end, 1 / 30 )
   metro_grid_redraw:start()
+  -- screen redraw - really low fps 
+  metro_screen_redraw = metro.init(function(idx,stage) redraw() end, 1 / 5 )
+  metro_screen_redraw:start()
 end
 
 function step()
@@ -115,9 +126,11 @@ function step()
 		if note_list[1].action == 1 then 
 		  print("note on " .. note_list[1].timestamp)
 		  m:note_on(note_list[1].note,100,note_list[1].channel)
+		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
 		  print("note off " .. note_list[1].timestamp)
 		  m:note_off(note_list[1].note,0,note_list[1].channel)
+		  screen_notes[note_list[1].track] = -1
 		end
 		table.remove(note_list,1)
 	end
@@ -129,14 +142,40 @@ function step()
 end
 
 function redraw()
+  -- screen.clear()
+	-- screen.move(40,40)
+	-- screen.text("Kria")
   screen.clear()
-	screen.move(40,40)
-	screen.text("Kria")
-
+  screen.font_size(12)
+  screen.font_face(3)
+  if k.mode == kria.mScale then   
+    screen.move(10,20)
+    screen.text("Root: " .. MusicUtil.note_num_to_name(root_note,true))
+    screen.font_size(8)
+    screen.font_face(1)
+    for idx = 1,7 do
+      screen.move(15 + (idx - 1 ) * 16,40)
+      local n = (59 + k:scale_note(idx))  - 60 + root_note 
+      screen.text(MusicUtil.note_num_to_name(n))
+    end
+  else
+    screen.move(10,20)
+    screen.text("Root: " .. MusicUtil.note_num_to_name(root_note,true))
+    screen.move(70,20)
+    screen.text("BPM: " .. params:get("bpm"))
+    for idx = 1,4 do 
+      screen.move(15 + (idx - 1 ) * 27,40)
+      if screen_notes[idx] > 0 then
+       screen.text(MusicUtil.note_num_to_name(screen_notes[idx] , true))
+      end
+    end
+    playback_icon:redraw()
+  end
   screen.update()
 end
 
 function gridredraw()
+ 
 	if preset_mode then
 		k:draw_presets(g)
 	else
@@ -145,6 +184,13 @@ function gridredraw()
 end
 
 function enc(n,delta)
+  if n == 2 then 
+    root_note = util.clamp(root_note + delta, 24, 72)
+    print(root_note)
+  elseif n == 3 then       
+    params:delta("bpm",delta)
+  end
+  
 end
 
 function key(n,z)
@@ -158,8 +204,10 @@ function key(n,z)
 	if n == 3 and z == 1 then
 		if clocked == true then
 				clocked = false
+				playback_icon.status = 3
 		else
 				clocked = true
+				playback_icon.status = 1
 		end
 	end
 end
