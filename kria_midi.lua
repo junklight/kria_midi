@@ -69,7 +69,6 @@ function make_note(track,n,oct,dur,tmul,rpt,glide)
 		-- currently 1 == C3 (60 = 59 + 1)
 		local r = rpt + 1
 		local notedur = 6  * (dur/r * tmul)
-		print( notedur )
 		for rptnum = 1,r do
 		  midi_note = (59 + nte) + ( (oct - 3) * 12 ) - 60 + root_note
 		  -- m:note_on(midi_note,100,midich)
@@ -88,15 +87,16 @@ function init()
   clk.on_step = step
   clk.beats_per_bar = 4
   clk.on_select_internal = function() clk:start() end
-  -- clk.on_select_external = reset_pattern
+  clk.on_select_external = function() print("external") end
 	clk:add_clock_params()
 	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
     action = function(value)
-      -- clk.ticks_per_step = 96 / options.STEP_LENGTH_DIVIDERS[value]
-      clk.ticks_per_step = 96 
+      clk.ticks_per_step = 96 / ((options.STEP_LENGTH_DIVIDERS[value] * 6) * 4)
+      -- clk.ticks_per_step = 6 
       clk.steps_per_beat = options.STEP_LENGTH_DIVIDERS[value] * 6
       current_sld = options.STEP_LENGTH_DIVIDERS[value]
-      print("current sld " .. current_sld)
+      -- print( "ticks " ..  clk.ticks_per_step .. " steps " .. options.STEP_LENGTH_DIVIDERS[value] * 6 .. " steps per quarter  " ..   ( (options.STEP_LENGTH_DIVIDERS[value] * 6) / 4 ))
+      -- print("current sld " .. current_sld)
       clk:bpm_change(clk.bpm)
     end}
 	params:add_separator()
@@ -122,13 +122,13 @@ function step()
 	table.sort(note_list,function(a,b) return a.timestamp < b.timestamp end)
 	while note_list[1] ~= nil and note_list[1].timestamp <= clock_count do
 		--print("note off " .. note_off_list[1].note)
-		print("clock " .. clock_count)
+		-- print("clock " .. clock_count)
 		if note_list[1].action == 1 then 
-		  print("note on " .. note_list[1].timestamp)
+		  -- print("note on " .. note_list[1].timestamp)
 		  m:note_on(note_list[1].note,100,note_list[1].channel)
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
-		  print("note off " .. note_list[1].timestamp)
+		  -- print("note off " .. note_list[1].timestamp)
 		  m:note_off(note_list[1].note,0,note_list[1].channel)
 		  screen_notes[note_list[1].track] = -1
 		end
@@ -186,7 +186,7 @@ end
 function enc(n,delta)
   if n == 2 then 
     root_note = util.clamp(root_note + delta, 24, 72)
-    print(root_note)
+    -- print(root_note)
   elseif n == 3 then       
     params:delta("bpm",delta)
   end
@@ -217,7 +217,7 @@ function gridkey(x, y, z)
 end
 
 function cleanup()
-	print("Cleanup")
+	-- print("Cleanup")
 	k:save("Kria/kria.data")
-	print("Done")
+	-- print("Done")
 end
