@@ -26,7 +26,7 @@ for idx = 1,16 do
 		-- copy in scale data for the first 7
 		scales[idx][1] = 1
 		for sdx = 2,7 do
-			scales[idx][sdx] = SCALE_INT[idx][sdx - 1]
+			scales[idx][sdx] = SCALE_INT[idx][sdx - 1] + 1
 		end
 	else
 		-- for the rest just use the first for now

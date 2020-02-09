@@ -81,7 +81,7 @@ function make_note(track,n,oct,dur,tmul,rpt,glide)
 		local r = rpt + 1
 		local notedur = 6  * (dur/r * tmul)
 		for rptnum = 1,r do
-		  midi_note = (59 + nte) + ( (oct - 3) * 12 ) - 60 + root_note
+		  midi_note = nte + ( (oct - 3) * 12 ) + root_note
 		  -- m:note_on(midi_note,100,midich)
 		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
 		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) - 0.1, channel = midich , note = midi_note })
@@ -175,7 +175,7 @@ function redraw()
     screen.font_face(1)
     for idx = 1,7 do
       screen.move(15 + (idx - 1 ) * 16,40)
-      local n = (59 + k:scale_note(idx))  - 60 + root_note 
+      local n =  k:scale_note(idx)  +  root_note 
       screen.text(MusicUtil.note_num_to_name(n))
     end
   else

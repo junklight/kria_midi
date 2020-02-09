@@ -1729,9 +1729,9 @@ function kria:draw(g)
 end
 
 function kria:calc_scale(x)
-	self.cur_scale[1] = scales[x][1]
+	self.cur_scale[1] = scales[x][1] - 1
 	for idx = 2,7 do
-		self.cur_scale[idx] = self.cur_scale[idx-1] + scales[x][idx]
+		self.cur_scale[idx] = self.cur_scale[idx-1] + scales[x][idx] - 1
 	end
 end
 
