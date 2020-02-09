@@ -46,11 +46,12 @@ local midi_out_device
 
 
 function process_midi_in(data)
+  print("midi in")
   local msg = midi.to_msg(data)
-  print("a")
   if msg.type == "note_on" then
-    print("b")
     root_note = msg.note
+  else
+    clk:process_midi(data)
   end
 end
 
@@ -108,7 +109,8 @@ function init()
   params:add{type = "number", id = "midi_out_device", name = "midi out device",
     min = 1, max = 4, default = 1,
     action = function(value) midi_out_device = midi.connect(value) end}
-	clk:add_clock_params()
+	params:add_separator()
+  clk:add_clock_params()
 	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
     action = function(value)
       clk.ticks_per_step = 96 / ((options.STEP_LENGTH_DIVIDERS[value] * 6) * 4)
@@ -119,7 +121,7 @@ function init()
       -- print("current sld " .. current_sld)
       clk:bpm_change(clk.bpm)
     end}
-	params:add_separator()
+	
 	params:add{type="option",name="Note Sync",id="note_sync",options={"Off","On"},default=2, action=nsync}
 	params:add{type="option",name="Loop Sync",id="loop_sync",options={"None","Track","All"},default=1, action=lsync}
 	params:add_separator()
