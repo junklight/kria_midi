@@ -13,16 +13,18 @@
 local MusicUtil = require "musicutil"
 local UI = require "ui"
 local kria = require 'kria_midi/lib/kria'
-local BeatClock = require 'beatclock'
+local BeatClock = require 'kria_midi/lib/beattest'
 local clk = BeatClock.new()
 local clk_midi = midi.connect()
 clk_midi.event = function(data)
   clk:process_midi(data)
 end
 
+  
+
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
-options.STEP_LENGTH_DIVIDERS = {0.25, 0.5, 0.6, 1 , 1.5 , 2, 3 , 4 , 5, 6, 12 , 8}
+options.STEP_LENGTH_DIVIDERS = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64}
 
 local g = grid.connect(1)
 function g.key(x,y,z) gridkey(x,y,z) end
@@ -31,7 +33,7 @@ local k
 local preset_mode = false
 local clocked = true
 local clock_count = 1
-local current_sld = 8
+
 
 local note_list = {}
 local screen_notes = { -1 , -1 , -1 , -1 }
@@ -46,7 +48,6 @@ local midi_out_device
 
 
 function process_midi_in(data)
-  print("midi in")
   local msg = midi.to_msg(data)
   if msg.type == "note_on" then
     root_note = msg.note
@@ -97,6 +98,7 @@ function init()
 	norns.enc.sens(2,4)
   k:init(make_note)
   clk.on_step = step
+  clk.on_start = function() k:reset() end
   clk.beats_per_bar = 4
   clk.on_select_internal = function() clk:start() end
   clk.on_select_external = function() print("external") end
@@ -106,23 +108,23 @@ function init()
       midi_in_device = midi.connect(value) 
       midi_in_device.event = process_midi_in
       end}
+
   params:add{type = "number", id = "midi_out_device", name = "midi out device",
     min = 1, max = 4, default = 1,
     action = function(value) midi_out_device = midi.connect(value) end}
 	params:add_separator()
   clk:add_clock_params()
-	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
+  	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
     action = function(value)
-      clk.ticks_per_step = 96 / ((options.STEP_LENGTH_DIVIDERS[value] * 6) * 4)
-      -- clk.ticks_per_step = 6 
-      clk.steps_per_beat = options.STEP_LENGTH_DIVIDERS[value] * 6
-      current_sld = options.STEP_LENGTH_DIVIDERS[value]
-      -- print( "ticks " ..  clk.ticks_per_step .. " steps " .. options.STEP_LENGTH_DIVIDERS[value] * 6 .. " steps per quarter  " ..   ( (options.STEP_LENGTH_DIVIDERS[value] * 6) / 4 ))
-      -- print("current sld " .. current_sld)
+      clk.ticks_per_step = ( 96 / (options.STEP_LENGTH_DIVIDERS[value])  ) 
+      clk.steps_per_beat = ( options.STEP_LENGTH_DIVIDERS[value] ) 
+      -- clk.ticks_per_step = 24
+      -- clk.steps_per_beat = 4
       clk:bpm_change(clk.bpm)
+      print("clock " .. clk.ticks_per_step .. " steps " .. clk.steps_per_beat)
     end}
-	
-	params:add{type="option",name="Note Sync",id="note_sync",options={"Off","On"},default=2, action=nsync}
+	params:add_separator()
+	params:add{type="option",name="Note Sync",id="note_sync",options={"Off","On"},default=1, action=nsync}
 	params:add{type="option",name="Loop Sync",id="loop_sync",options={"None","Track","All"},default=1, action=lsync}
 	params:add_separator()
 	for i = 1, 4 do
@@ -156,11 +158,7 @@ function step()
 		end
 		table.remove(note_list,1)
 	end
-	if clock_count %   6  == 0 then
-	   if clocked then
-		   k:clock()
-	   end
-	end
+	k:clock()
 end
 
 function redraw()
