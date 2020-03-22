@@ -77,7 +77,7 @@ end
 function make_note(track,n,oct,dur,tmul,rpt,glide)
 		local midich = params:get(track .."_midi_chan")
 		local nte = k:scale_note(n)
-		print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
+		-- print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
 		-- ignore repeats and glide for now
 		-- currently 1 == C3 (60 = 59 + 1)
 		local r = rpt + 1
@@ -221,11 +221,12 @@ function key(n,z)
 	-- key 2 opens presets for now
 	-- this may change
 	if n == 2 and z == 1 then
-		preset_mode = true
-	else
-		preset_mode = false
-	end
-	if n == 3 and z == 1 then
+	  if preset_mode then
+	    preset_mode = false
+	  else 
+		  preset_mode = true
+	  end
+	elseif n == 3 and z == 1 then
 		if clocked == true then
 				clocked = false
 				playback_icon.status = 3
@@ -241,7 +242,7 @@ function gridkey(x, y, z)
 end
 
 function cleanup()
-	-- print("Cleanup")
-	k:save("Kria/kria.data")
-	-- print("Done")
+	print("Cleanup")
+	k:save("kria_midi/kria.data")
+	print("Done")
 end
