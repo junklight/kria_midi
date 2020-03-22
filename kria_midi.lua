@@ -20,7 +20,7 @@ clk_midi.event = function(data)
   clk:process_midi(data)
 end
 
-  
+local statestore = "kria_midi/kria.data"
 
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
@@ -93,7 +93,7 @@ end
 
 function init()
   print("Kria Init")
-	k = kria.loadornew("Kria/kria.data")
+	k = kria.loadornew(statestore)
 	--k = kria.new()
 	norns.enc.sens(2,4)
   k:init(make_note)
@@ -243,6 +243,6 @@ end
 
 function cleanup()
 	print("Cleanup")
-	k:save("kria_midi/kria.data")
+	k:save(statestore)
 	print("Done")
 end
