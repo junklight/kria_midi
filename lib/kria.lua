@@ -251,7 +251,7 @@ function kria.new()
 	
 	-- meta stuff
 	i.meta_pat = newempty(64,1)
-	i.meta_steps = newempty(64,7)
+	i.meta_steps = newempty(64,8)
 	i.meta_start = 1
 	i.meta_end = 4
 	i.meta_len = 4 
@@ -342,10 +342,14 @@ function kria:clock()
 
 						if self.meta == 1 then  
 								self.meta_count = self.meta_count + 1
+								print("meta pos " .. self.meta_pos )
+								print("meta count " .. self.meta_count  )
+								print("meta next " .. self.meta_next  )
+								print("meta start " .. self.meta_start  )
 								if self.meta_count > self.meta_steps[self.meta_pos] then
   									if self.meta_next > 0 then
-												self.meta_pos = self.meta_next 
-										elseif self.meta_pos == self.meta_end then
+												self.meta_pos = self.meta_next - 1
+										elseif self.meta_pos >= self.meta_end then
 												self.meta_pos = self.meta_start
 										else
 												self.meta_pos = self.meta_pos + 1
@@ -356,10 +360,10 @@ function kria:clock()
 										self.meta_next = 0
 										self.meta_count = 1
 								end
-					elseif self.cue_pat_next > 0 then 
+					  elseif self.cue_pat_next > 0 then 
 							self:change_pattern(self.cue_pat_next);
 							self.cue_pat_next = 0;
-					end
+					  end
 		end
 	end
 	if self.pos_reset then
@@ -1802,6 +1806,7 @@ function kria.loadornew(fname)
 			end
 	  end	
 	  ret.workingpreset = ret.presetstore[ret.preset]:copy()
+	  ret.meta_pos = 1
   end
   
 	return ret

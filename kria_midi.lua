@@ -25,6 +25,7 @@ local statestore = "kria_midi/kria.data"
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
 options.STEP_LENGTH_DIVIDERS = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64}
+local div = 8
 
 local g = grid.connect(1)
 function g.key(x,y,z) gridkey(x,y,z) end
@@ -77,16 +78,19 @@ end
 function make_note(track,n,oct,dur,tmul,rpt,glide)
 		local midich = params:get(track .."_midi_chan")
 		local nte = k:scale_note(n)
-		-- print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
+		print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
 		-- ignore repeats and glide for now
 		-- currently 1 == C3 (60 = 59 + 1)
 		local r = rpt + 1
-		local notedur = 6  * (dur/r * tmul)
+		local notedur = (dur/r * tmul) 
+		print("notedur " .. notedur .. " metro " .. (clk.metro.time * clk.ticks_per_step) )
 		for rptnum = 1,r do
 		  midi_note = nte + ( (oct - 3) * 12 ) + root_note
 		  -- m:note_on(midi_note,100,midich)
-		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
-		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) - 0.1, channel = midich , note = midi_note })
+		  -- table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
+		  -- table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) + 1 , channel = midich , note = midi_note })
+		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + 1 , channel = midich , note = midi_note })
+		  table.insert(note_list,{ action = 0 , track = track , timestamp = clock_count + notedur + 1 , channel = midich , note = midi_note })
 		end
 end
 
@@ -144,15 +148,15 @@ end
 function step()
 	clock_count = clock_count + 1
 	table.sort(note_list,function(a,b) return a.timestamp < b.timestamp end)
-	while note_list[1] ~= nil and note_list[1].timestamp <= clock_count do
+	while note_list[1] ~= nil and note_list[1].timestamp == clock_count do
 		--print("note off " .. note_off_list[1].note)
 		-- print("clock " .. clock_count)
 		if note_list[1].action == 1 then 
-		  -- print("note on " .. note_list[1].timestamp)
+		  print("note on " .. note_list[1].timestamp)
 		  midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
-		  -- print("note off " .. note_list[1].timestamp)
+		  print("note off " .. note_list[1].timestamp)
 		  midi_out_device:note_off(note_list[1].note,0,note_list[1].channel)
 		  screen_notes[note_list[1].track] = -1
 		end
