@@ -26,7 +26,7 @@ local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
 options.STEP_LENGTH_DIVIDERS = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64}
 local div = 8
-local STEPDIV = 8
+local STEPDIV = 6
 
 local g = grid.connect(1)
 function g.key(x,y,z) gridkey(x,y,z) end
@@ -80,19 +80,17 @@ end
 function make_note(track,n,oct,dur,tmul,rpt,glide)
 		local midich = params:get(track .."_midi_chan")
 		local nte = k:scale_note(n)
-		print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
+		-- print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
 		-- ignore repeats and glide for now
 		-- currently 1 == C3 (60 = 59 + 1)
 		local r = rpt + 1
 		local notedur = (dur/r * tmul) 
-		print("notedur " .. notedur .. " metro " .. (clk.metro.time * clk.ticks_per_step) )
+		-- print("notedur " .. notedur .. " metro " .. (clk.metro.time * clk.ticks_per_step) )
 		for rptnum = 1,r do
 		  midi_note = nte + ( (oct - 3) * 12 ) + root_note
 		  -- m:note_on(midi_note,100,midich)
 		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
 		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur))  , channel = midich , note = midi_note })
-		  -- table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count  , channel = midich , note = midi_note })
-		  -- table.insert(note_list,{ action = 0 , track = track , timestamp = clock_count + notedur  , channel = midich , note = midi_note })
 		end
 end
 
@@ -104,6 +102,7 @@ function init()
 	norns.enc.sens(2,4)
   k:init(make_note)
   clk.on_step = step
+  clk.on_tick = tick
   clk.on_start = function() k:reset() end
   clk.beats_per_bar = 4
   clk.on_select_internal = function() clk:start() end
@@ -122,11 +121,8 @@ function init()
   clk:add_clock_params()
   	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
     action = function(value)
-      local div = (options.STEP_LENGTH_DIVIDERS[value]) * STEPDIV
-      clk.ticks_per_step = ( 96 / div  ) 
-      clk.steps_per_beat = ( div ) 
-      -- clk.ticks_per_step = 24
-      -- clk.steps_per_beat = 4
+       clk.ticks_per_step = 96 / options.STEP_LENGTH_DIVIDERS[value]
+      clk.steps_per_beat = options.STEP_LENGTH_DIVIDERS[value] / 4
       clk:bpm_change(clk.bpm)
       print("clock " .. clk.ticks_per_step .. " steps " .. clk.steps_per_beat)
     end}
@@ -149,11 +145,15 @@ function init()
 end
 
 function step()
+  k:clock()
+end
+
+function tick() 
   if not clocked then 
     return
   end
-	clock_count = clock_count + ( 1 / STEPDIV )
-	-- print("clock " .. clock_count)
+	clock_count = clock_count + ( 1 / clk.ticks_per_step )
+	--print("clock " .. clock_count)
 	table.sort(note_list, 
 	          function(a,b) 
 	            if a.timestamp < b.timestamp then 
@@ -168,18 +168,15 @@ function step()
 		--print("note off " .. note_off_list[1].note)
 		
 		if note_list[1].action == 1 then 
-		  print("note on " .. note_list[1].timestamp)
+		  -- print("note on " .. note_list[1].timestamp)
 		  midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
-		  print("note off " .. note_list[1].timestamp)
+		  -- print("note off " .. note_list[1].timestamp)
 		  midi_out_device:note_off(note_list[1].note,0,note_list[1].channel)
 		  screen_notes[note_list[1].track] = -1
 		end
 		table.remove(note_list,1)
-	end
-	if math.floor(clock_count) == clock_count then
-	  k:clock()
 	end
 end
 
