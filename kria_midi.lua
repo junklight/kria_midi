@@ -145,6 +145,9 @@ function init()
 end
 
 function step()
+  if not clocked then 
+    return
+  end
   k:clock()
 end
 
