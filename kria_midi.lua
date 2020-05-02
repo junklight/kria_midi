@@ -128,6 +128,11 @@ function init()
   metro_screen_redraw:start()
 end
 
+function clock.transport.start()
+  k:reset()
+  id = clock.run(pulse)
+end
+
 function do_bar()
   clock.sync(4)
   clock.run(do_step)
