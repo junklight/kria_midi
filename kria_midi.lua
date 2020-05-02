@@ -13,20 +13,15 @@
 local MusicUtil = require "musicutil"
 local UI = require "ui"
 local kria = require 'kria_midi/lib/kria'
-local BeatClock = require 'kria_midi/lib/beattest'
-local clk = BeatClock.new()
-local clk_midi = midi.connect()
-clk_midi.event = function(data)
-  clk:process_midi(data)
-end
+
 
 local statestore = "kria_midi/kria.data"
 
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
-options.STEP_LENGTH_DIVIDERS = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64}
-local div = 8
-local STEPDIV = 6
+options.STEPS = {               1 , 2 , 3 , 4  , 6 , 8 , 12 , 16 , 24 , 32 , 48 , 64 }
+local stepchoice = 6
+local ticks_per_step = 12 
 
 local g = grid.connect(1)
 function g.key(x,y,z) gridkey(x,y,z) end
@@ -34,9 +29,8 @@ local k
 
 local preset_mode = false
 local clocked = true
-local clock_count = 1
-
-
+local clock_count = 0
+local tick_count = 0
 
 local note_list = {}
 local screen_notes = { -1 , -1 , -1 , -1 }
@@ -49,13 +43,10 @@ playback_icon.status = 1
 local midi_in_device
 local midi_out_device
 
-
 function process_midi_in(data)
   local msg = midi.to_msg(data)
   if msg.type == "note_on" then
     root_note = msg.note
-  else
-    clk:process_midi(data)
   end
 end
 
@@ -101,12 +92,6 @@ function init()
 	--k = kria.new()
 	norns.enc.sens(2,4)
   k:init(make_note)
-  clk.on_step = step
-  clk.on_tick = tick
-  clk.on_start = function() k:reset() end
-  clk.beats_per_bar = 4
-  clk.on_select_internal = function() clk:start() end
-  clk.on_select_external = function() print("external") end
   params:add{type = "number", id = "midi_in_device", name = "midi in device",
     min = 1, max = 4, default = 1,
     action = function(value) 
@@ -118,14 +103,10 @@ function init()
     min = 1, max = 4, default = 1,
     action = function(value) midi_out_device = midi.connect(value) end}
 	params:add_separator()
-  clk:add_clock_params()
-  	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
-    action = function(value)
-       clk.ticks_per_step = 96 / options.STEP_LENGTH_DIVIDERS[value]
-      clk.steps_per_beat = options.STEP_LENGTH_DIVIDERS[value] / 4
-      clk:bpm_change(clk.bpm)
-      print("clock " .. clk.ticks_per_step .. " steps " .. clk.steps_per_beat)
-    end}
+	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
+  action = function(value)
+    stepchoice = value
+  end}
 	params:add_separator()
 	params:add{type="option",name="Note Sync",id="note_sync",options={"Off","On"},default=1, action=nsync}
 	params:add{type="option",name="Loop Sync",id="loop_sync",options={"None","Track","All"},default=1, action=lsync}
@@ -136,6 +117,9 @@ function init()
 	params:add_separator()
 	-- params:add_number("clock_ticks", "clock ticks", 1, 96,1)
   params:bang()
+  -- setup clock 
+  clock.run(do_bar)
+  
   -- grid refresh timer, 15 fps
   metro_grid_redraw = metro.init(function(idx,stage) gridredraw() end, 1 / 30 )
   metro_grid_redraw:start()
@@ -144,19 +128,33 @@ function init()
   metro_screen_redraw:start()
 end
 
-function step()
-  if not clocked then 
-    return
+function do_bar()
+  clock.sync(4)
+  clock.run(do_step)
+end
+
+function do_step()
+  while true do
+    for i=1,options.STEPS[stepchoice] do -- tick counter inside the bar
+      tick()
+      steplen = ((1/options.STEPS[stepchoice]) * 4.0 ) / ticks_per_step
+      clock.sync(steplen)
+    end
   end
-  k:clock()
 end
 
 function tick() 
   if not clocked then 
     return
   end
-	clock_count = clock_count + ( 1 / clk.ticks_per_step )
-	--print("clock " .. clock_count)
+  tick_count = tick_count + 1
+  if tick_count == ticks_per_step then 
+    tick_count = 0
+    clock_count = clock_count + 1
+    k:clock()
+  end
+  local clock_value = clock_count +  (( 1 / ticks_per_step ) * tick_count)
+	
 	table.sort(note_list, 
 	          function(a,b) 
 	            if a.timestamp < b.timestamp then 
@@ -167,7 +165,7 @@ function tick()
 	              return false
 	            end
 	           end )
-	while note_list[1] ~= nil and note_list[1].timestamp <= clock_count do
+	while note_list[1] ~= nil and note_list[1].timestamp <= clock_value do
 		--print("note off " .. note_off_list[1].note)
 		
 		if note_list[1].action == 1 then 
@@ -188,8 +186,8 @@ function redraw()
 	-- screen.move(40,40)
 	-- screen.text("Kria")
   screen.clear()
-  screen.font_size(12)
-  screen.font_face(3)
+  screen.font_size(10)
+  screen.font_face(6)
   if k.mode == kria.mScale then   
     screen.move(10,20)
     screen.text("Root: " .. MusicUtil.note_num_to_name(root_note,true))
@@ -201,14 +199,12 @@ function redraw()
       screen.text(MusicUtil.note_num_to_name(n))
     end
   else
-    screen.move(10,20)
+    screen.move(8,20)
     screen.text("Root: " .. MusicUtil.note_num_to_name(root_note,true))
     screen.move(70,20)
-    if clk.external then 
-      screen.text("BPM: ext")
-    else 
-      screen.text("BPM: " .. params:get("bpm"))
-    end
+    
+    screen.text("BPM: " .. clock.get_tempo())
+
     for idx = 1,4 do 
       screen.move(15 + (idx - 1 ) * 27,40)
       if screen_notes[idx] > 0 then
@@ -234,7 +230,7 @@ function enc(n,delta)
     root_note = util.clamp(root_note + delta, 24, 72)
     -- print(root_note)
   elseif n == 3 then       
-    params:delta("bpm",delta)
+    params:delta("clock_tempo",delta)
   end
   
 end
