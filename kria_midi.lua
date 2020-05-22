@@ -12,11 +12,11 @@
 -- engine.name = "ack"
 local MusicUtil = require "musicutil"
 local UI = require "ui"
-package.loaded["kria_midi/lib/kria"] = nil
+-- package.loaded["kria_midi/lib/kria"] = nil
 local kria = require 'kria_midi/lib/kria'
 local statestore = "kria_midi/kria.data"
 
-package.loaded["kria_midi/lib/output"] = nil
+-- package.loaded["kria_midi/lib/output"] = nil
 
 local output = require 'kria_midi/lib/output'
 local hardware_out = output:new(4)
