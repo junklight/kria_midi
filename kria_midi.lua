@@ -12,10 +12,15 @@
 -- engine.name = "ack"
 local MusicUtil = require "musicutil"
 local UI = require "ui"
+package.loaded["kria_midi/lib/kria"] = nil
 local kria = require 'kria_midi/lib/kria'
-
-
 local statestore = "kria_midi/kria.data"
+
+package.loaded["kria_midi/lib/output"] = nil
+
+local output = require 'kria_midi/lib/output'
+local hardware_out = output:new(4)
+
 
 local options = {}
 options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12", "1/16", "1/24", "1/32", "1/48", "1/64"}
@@ -69,7 +74,6 @@ local function lsync(x)
 end
 
 function make_note(track,n,oct,dur,tmul,rpt,glide)
-		local midich = params:get(track .."_midi_chan")
 		local nte = k:scale_note(n)
 		-- print("[" .. track .. "/" .. midich .. "] Note " .. nte .. "/" .. oct .. " for " .. dur .. " repeats " .. rpt .. " glide " .. glide  )
 		-- ignore repeats and glide for now
@@ -80,8 +84,8 @@ function make_note(track,n,oct,dur,tmul,rpt,glide)
 		for rptnum = 1,r do
 		  midi_note = nte + ( (oct - 3) * 12 ) + root_note
 		  -- m:note_on(midi_note,100,midich)
-		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), channel = midich , note = midi_note })
-		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur))  , channel = midich , note = midi_note })
+		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), note = midi_note })
+		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) , note = midi_note })
 		end
 end
 
@@ -98,10 +102,8 @@ function init()
       midi_in_device = midi.connect(value) 
       midi_in_device.event = process_midi_in
       end}
-
-  params:add{type = "number", id = "midi_out_device", name = "midi out device",
-    min = 1, max = 4, default = 1,
-    action = function(value) midi_out_device = midi.connect(value) end}
+  
+ 
 	params:add_separator()
 	params:add{type = "option", id = "step_length", name = "step length", options = options.STEP_LENGTH_NAMES, default = 6,
   action = function(value)
@@ -111,11 +113,11 @@ function init()
 	params:add{type="option",name="Note Sync",id="note_sync",options={"Off","On"},default=1, action=nsync}
 	params:add{type="option",name="Loop Sync",id="loop_sync",options={"None","Track","All"},default=1, action=lsync}
 	params:add_separator()
-	for i = 1, 4 do
-    params:add_number(i.."_midi_chan", i..": midi chan", 1, 16,i)
-  end
-	params:add_separator()
-	-- params:add_number("clock_ticks", "clock ticks", 1, 96,1)
+	
+	hardware_out:add_params()
+	
+	
+	
   params:bang()
   -- setup clock 
   clock.run(do_bar)
@@ -175,11 +177,13 @@ function tick()
 		
 		if note_list[1].action == 1 then 
 		  -- print("note on " .. note_list[1].timestamp)
-		  midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
+		  -- midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
+		  hardware_out:note_on(note_list[1].track , note_list[1].note,100 )
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
 		  -- print("note off " .. note_list[1].timestamp)
-		  midi_out_device:note_off(note_list[1].note,0,note_list[1].channel)
+		  -- midi_out_device:note_off(note_list[1].note,0,note_list[1].channel)
+		  hardware_out:note_off(note_list[1].track , note_list[1].note,100 )
 		  screen_notes[note_list[1].track] = -1
 		end
 		table.remove(note_list,1)
@@ -253,6 +257,7 @@ function key(n,z)
 		if clocked == true then
 				clocked = false
 				playback_icon.status = 3
+				hardware_out:all_notes_off()
 		else
 				clocked = true
 				playback_icon.status = 1
@@ -266,6 +271,7 @@ end
 
 function cleanup()
 	print("Cleanup")
+	hardware_out:all_notes_off()
 	k:save(statestore)
 	print("Done")
 end
