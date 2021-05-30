@@ -35,7 +35,90 @@ crowouts = {
     off_fn = function(note)
       crow.ii.ansible.trigger( 1 ,0  )
       end
-      }
+      },
+    {
+    name="Crow Ansible CV/G 2",
+    on_fn = function(note,velocity)
+        crow.ii.ansible.trigger( 2 ,1  )
+        crow.ii.ansible.cv( 2, note/12)
+      end
+    ,
+    off_fn = function(note)
+      crow.ii.ansible.trigger( 2 ,0  )
+      end
+      },
+    {
+      name="Crow Ansible CV/G 3",
+    on_fn = function(note,velocity)
+        crow.ii.ansible.trigger( 3 ,1  )
+        crow.ii.ansible.cv( 3, note/12)
+      end
+    ,
+    off_fn = function(note)
+      crow.ii.ansible.trigger( 3 ,0  )
+      end
+      },
+    {
+      name="Crow Ansible CV/G 4",
+    on_fn = function(note,velocity)
+        crow.ii.ansible.trigger( 4 ,1  )
+        crow.ii.ansible.cv( 4, note/12)
+      end
+    ,
+    off_fn = function(note)
+      crow.ii.ansible.trigger( 4 ,0  )
+      end
+      },
+    { 
+    name="Crow JF Voice 1 ",
+    on_fn = function(note,velocity)
+        vel_map = {6,5,4,3,2,1}
+        crow.ii.jf.play_voice( 1, (note-60)/12, vel_map[velocity])
+      end
+      ,
+      off_fn = function(note)
+      end
+      },
+    {
+    name="Crow JF Voice 2 ",
+    on_fn = function(note,velocity)
+        vel_map = {6,5,4,3,2,1}
+        crow.ii.jf.play_voice( 2, (note-60)/12, vel_map[velocity])
+      end
+      ,
+      off_fn = function(note)
+      end
+      },
+    {
+    name="Crow JF Voice 3 ",
+    on_fn = function(note,velocity)
+        vel_map = {6,5,4,3,2,1}
+        crow.ii.jf.play_voice( 3, (note-60)/12, vel_map[velocity])
+      end
+      ,
+      off_fn = function(note)
+      end
+      },
+    {
+    name="Crow JF Voice 4 ",
+    on_fn = function(note,velocity)
+        vel_map = {6,5,4,3,2,1}
+        crow.ii.jf.play_voice( 4, (note-60)/12, vel_map[velocity])
+      end
+      ,
+      off_fn = function(note)
+      end
+      },
+    {
+    name="Crow JF Poly ",
+    on_fn = function(note,velocity)
+        vel_map = {6,5,4,3,2,1}
+        crow.ii.jf.play_note((note-60)/12, vel_map[velocity])
+      end
+      ,
+      off_fn = function(note)
+      end
+      },
   }
   
 return crowouts
@@ -140,6 +223,7 @@ function output:add_params()
             self:note_off(i,self.noteons[i].note,self.noteons[i].velocity)
           end
           self.crowsel[i] = n
+          crow.ii.jf.mode(1)
         end
       }
       if i < self.n then 
