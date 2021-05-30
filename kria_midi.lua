@@ -27,7 +27,8 @@ options.STEP_LENGTH_NAMES = {"1 bar", "1/2", "1/3", "1/4", "1/6", "1/8", "1/12",
 options.STEPS = {               1 , 2 , 3 , 4  , 6 , 8 , 12 , 16 , 24 , 32 , 48 , 64 }
 local stepchoice = 6
 local ticks_per_step = 12 
-
+local enable_midigrid = util.file_exists(_path.code.."midigrid") and 1 or 0
+local grid = enable_midigrid and include "midigrid/lib/mg_128" or grid
 local g = grid.connect(1)
 function g.key(x,y,z) gridkey(x,y,z) end
 local k
@@ -84,7 +85,7 @@ function make_note(track,n,oct,dur,tmul,rpt,glide)
 		for rptnum = 1,r do
 		  midi_note = nte + ( (oct - 3) * 12 ) + root_note
 		  -- m:note_on(midi_note,100,midich)
-		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), note = midi_note })
+		  table.insert(note_list,{ action = 1 , track = track , timestamp = clock_count + ( (rptnum - 1) * notedur), note = midi_note, dur = dur })
 		  table.insert(note_list,{ action = 0 , track = track , timestamp = (clock_count + (rptnum * notedur)) , note = midi_note })
 		end
 end
@@ -96,12 +97,16 @@ function init()
 	--k = kria.new()
 	norns.enc.sens(2,4)
   k:init(make_note)
-  params:add{type = "number", id = "midi_in_device", name = "midi in device",
-    min = 1, max = 4, default = 1,
-    action = function(value) 
-      midi_in_device = midi.connect(value) 
-      midi_in_device.event = process_midi_in
+  -- midigrid and using midi in do not jive
+  -- since every button press changes root note
+  if not enable_midigrid then
+    params:add{type = "number", id = "midi_in_device", name = "midi in device",
+      min = 1, max = 4, default = 1,
+      action = function(value) 
+        midi_in_device = midi.connect(value) 
+        midi_in_device.event = process_midi_in
       end}
+  end
   
  
 	params:add_separator()
@@ -178,7 +183,7 @@ function tick()
 		if note_list[1].action == 1 then 
 		  -- print("note on " .. note_list[1].timestamp)
 		  -- midi_out_device:note_on(note_list[1].note,100,note_list[1].channel)
-		  hardware_out:note_on(note_list[1].track , note_list[1].note,100 )
+		  hardware_out:note_on(note_list[1].track , note_list[1].note,note_list[1].dur )
 		  screen_notes[note_list[1].track] = note_list[1].note
 		else 
 		  -- print("note off " .. note_list[1].timestamp)
